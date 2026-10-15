@@ -1,0 +1,1 @@
+{"name":"campus/emergency-system","require":{"php":">=8.1","ext-mongodb":"*","mongodb/mongodb":"^2.0"}}

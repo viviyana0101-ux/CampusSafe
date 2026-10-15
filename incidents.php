@@ -1,0 +1,19 @@
+<?php require 'config.php'; need(); $title='Incidents';
+$f=seeall()?[]:['reporter_id'=>user()['id']];
+$q=trim($_GET['q']??'');$s=$_GET['status']??'';$v=$_GET['severity']??'';$as=(seeall()&&($_GET['assigned']??'')==='none')?'none':'';
+if($q)$f['$or']=[['title'=>new MongoDB\BSON\Regex(preg_quote($q),'i')],['location'=>new MongoDB\BSON\Regex(preg_quote($q),'i')]];
+if(in_array($s,STATS))$f['status']=$s; if(in_array($v,SEVS))$f['severity']=$v; if($as)$f['assigned_to']=null;
+$page=max(1,(int)($_GET['p']??1));$per=10;$total=$db->incidents->countDocuments($f);
+$rows=$db->incidents->find($f,['sort'=>['created_at'=>-1],'limit'=>$per,'skip'=>($page-1)*$per]);
+require 'includes/header.php'; ?>
+<div class="page-head"><div><h3>Incidents</h3><p><?=$total?> incident<?=$total==1?'':'s'?> <?=($q||$s||$v||$as)?'match your filters':'on record'?></p></div><?php if(canreport()): ?><a href="incident_form.php" class="btn btn-danger"><i class="bi bi-plus-lg me-1"></i> Report Incident</a><?php endif; ?></div>
+<form class="card p-3 mb-3"><div class="row g-2"><div class="col-md-<?=seeall()?4:5?>"><div class="input-icon"><i class="bi bi-search"></i><input class="form-control" name="q" value="<?=e($q)?>" placeholder="Search title or location" aria-label="Search"></div></div>
+<div class="col-6 col-md-2"><select name="status" class="form-select" aria-label="Status"><option value="">All status</option><?php foreach(STATS as $x): ?><option <?=$s==$x?'selected':''?>><?=$x?></option><?php endforeach; ?></select></div>
+<div class="col-6 col-md-2"><select name="severity" class="form-select" aria-label="Severity"><option value="">All severity</option><?php foreach(SEVS as $x): ?><option <?=$v==$x?'selected':''?>><?=$x?></option><?php endforeach; ?></select></div>
+<?php if(seeall()): ?><div class="col-6 col-md-2"><select name="assigned" class="form-select" aria-label="Allocation"><option value="">All allocation</option><option value="none" <?=$as?'selected':''?>>Unassigned only</option></select></div><?php endif; ?>
+<div class="col-md-2 d-flex gap-2"><button class="btn btn-dark flex-grow-1"><i class="bi bi-funnel me-1"></i>Filter</button><?php if($q||$s||$v||$as): ?><a href="incidents.php" class="btn btn-soft" title="Clear filters" aria-label="Clear filters"><i class="bi bi-x-lg"></i></a><?php endif; ?></div></div></form>
+<div class="card"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Incident</th><th>Category</th><th>Location</th><th>Severity</th><th>Status</th><th>Allocated to</th><th>Reported</th></tr></thead><tbody>
+<?php foreach($rows as $i): ?><tr><td class="sev-bar <?=sevclass($i['severity'])?>"><a class="row-title" href="incident_view.php?id=<?=$i['_id']?>"><?=e($i['title'])?></a><div class="row-sub">by <?=e($i['reporter_name']??'')?></div><?=latest_line($i)?></td><td><?=e($i['category'])?></td><td><i class="bi bi-geo-alt text-muted me-1"></i><?=e($i['location'])?></td><td><?=badge($i['severity'])?></td><td><?=badge($i['status'])?></td><td><?=assignee($i)?></td><td class="small text-muted"><?=ts($i['created_at'])?></td></tr>
+<?php endforeach; if(!$total): ?><tr><td colspan="7"><div class="empty"><i class="bi bi-search"></i><strong>No incidents found</strong>Try adjusting your search or filters.</div></td></tr><?php endif; ?></tbody></table></div></div>
+<?php $pages=max(1,(int)ceil($total/$per)); if($pages>1): ?><nav class="mt-3 d-flex justify-content-between align-items-center flex-wrap gap-2" aria-label="Pagination"><span class="small text-muted">Page <?=$page?> of <?=$pages?></span><ul class="pagination mb-0"><?php for($p=1;$p<=$pages;$p++): ?><li class="page-item <?=$p==$page?'active':''?>"><a class="page-link" href="?<?=http_build_query(array_merge($_GET,['p'=>$p]))?>"><?=$p?></a></li><?php endfor; ?></ul></nav><?php endif; ?>
+<?php require 'includes/footer.php'; ?>
